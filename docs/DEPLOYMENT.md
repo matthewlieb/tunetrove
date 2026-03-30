@@ -28,7 +28,7 @@ Set **`NEXT_PUBLIC_USE_AGENT_PROXY=0`** and point **`NEXT_PUBLIC_AGENT_API_BASE_
 | Setup | Example redirect URI |
 |--------|----------------------|
 | **Proxy (recommended)** | `https://your-app.vercel.app/api/agent/auth/callback` |
-| **Custom domain** | `https://music.example.com/api/agent/auth/callback` |
+| **Custom domain** | e.g. `https://tempotrove.com/api/agent/auth/callback` (must match `FRONTEND_URL` host) |
 | **Direct API mode** | `https://api.example.com/auth/callback` |
 
 3. Save. Spotify allows multiple URIs; keep your local `http://127.0.0.1:8013/auth/callback` for dev if you still use it.

@@ -2,7 +2,8 @@
 
 **Site:** [tempotrove.com](https://tempotrove.com) (domain on Cloudflare; point DNS at your Vercel deployment when ready.)
 
-**GitHub:** after you rename the repo, use `github.com/matthewlieb/tempotrove` — today’s remote may still be `tunetrove` until you rename in GitHub **Settings → General → Repository name**.
+**GitHub:** [github.com/matthewlieb/tempotrove](https://github.com/matthewlieb/tempotrove). If your local remote still says `tunetrove`, run:  
+`git remote set-url origin https://github.com/matthewlieb/tempotrove.git`
 
 [Deep Agents](https://github.com/langchain-ai/deepagents)-powered music discovery (v1-lite): Spotify OAuth + chat + Spotify read/write + web research. Product overview: [Deep Agents docs](https://docs.langchain.com/oss/python/deepagents/overview).
 
