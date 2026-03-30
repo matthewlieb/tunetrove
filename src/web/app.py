@@ -365,10 +365,31 @@ def _empty_run_user_message(tool_trace: list[dict]) -> str:
         )
     if "tool_call" in kinds:
         return (
-            "Tools were invoked but the run stopped before a reply. Try **Send** again, "
-            "or open this app in Chrome/Safari (embedded browsers often drop long streams)."
+            "Tools were invoked but the run stopped before a final reply. "
+            "If you do not see an **Approve / Reject** banner, try **Send** again once. "
+            "Some mobile or in-app browsers drop long streams—use Chrome or Safari if it keeps happening."
         )
     return "(no reply)"
+
+
+def _reply_sounds_like_hitl_wait(reply: str) -> bool:
+    """True when the stream stub message should be replaced by the HITL banner copy."""
+    r = (reply or "").strip()
+    if not r or r == "(no reply)":
+        return True
+    if "run stopped before" in r:
+        return True
+    if "Tools were invoked but" in r:
+        return True
+    if "did not produce a final written answer" in r:
+        return True
+    return False
+
+
+_HITL_STREAM_FALLBACK_REPLY = (
+    "The assistant is waiting for your approval before running a Spotify or file action. "
+    "Use **Approve** or **Reject** below (or POST /chat/resume)."
+)
 
 
 def _resolve_stream_reply(
@@ -800,11 +821,8 @@ async def chat_json(request: Request):
                 _thread_messages[thread_id] = messages
             tool_trace = _tool_trace_from_messages(messages)
             reply = _last_ai_content(messages) or "(no reply)"
-            if hitl:
-                reply = reply if reply != "(no reply)" else (
-                    "The assistant is waiting for your approval before running a Spotify or file action. "
-                    "Use **Approve** or **Reject** in the UI (or POST /chat/resume)."
-                )
+            if hitl and _reply_sounds_like_hitl_wait(reply):
+                reply = _HITL_STREAM_FALLBACK_REPLY
             if _chat_debug_enabled():
                 _LOG.info(
                     "chat ok request_id=%s thread_id=%s elapsed_ms=%.1f tool_events=%s reply_chars=%s hitl=%s",
@@ -944,10 +962,8 @@ async def chat_resume(request: Request):
         hitl = turn.get("hitl")
         tool_trace = _tool_trace_from_messages(messages)
         reply = _last_ai_content(messages) or "(no reply)"
-        if hitl:
-            reply = reply if reply != "(no reply)" else (
-                "Further approval is required before the next action can run."
-            )
+        if hitl and _reply_sounds_like_hitl_wait(reply):
+            reply = "Further approval is required before the next action can run."
         if _chat_debug_enabled():
             _LOG.info(
                 "chat resume ok request_id=%s thread_id=%s elapsed_ms=%.1f hitl=%s",
@@ -1058,11 +1074,8 @@ async def chat_stream(request: Request):
                         _thread_messages[thread_id] = final_msgs
                     trace = _tool_trace_from_messages(final_msgs)
                     reply = _resolve_stream_reply(final_msgs, streamed_chunks, trace)
-                    if hitl_raw and (not reply.strip() or reply == "(no reply)"):
-                        reply = (
-                            "The assistant is waiting for your approval before running a Spotify or file action. "
-                            "Use **Approve** or **Reject** below (or POST /chat/resume)."
-                        )
+                    if hitl_raw and _reply_sounds_like_hitl_wait(reply):
+                        reply = _HITL_STREAM_FALLBACK_REPLY
                     done_payload: dict = {"reply": reply, "tool_trace": trace, "request_id": request_id}
                     if hitl_raw:
                         done_payload["hitl_pending"] = True

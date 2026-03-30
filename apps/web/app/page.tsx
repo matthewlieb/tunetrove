@@ -1677,50 +1677,7 @@ export default function HomePage() {
                     borderBottom: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#e5e7eb",
-                        flex: "1 1 auto",
-                        minWidth: 0,
-                      }}
-                    >
-                      Tools
-                    </div>
-                    <button
-                      type="button"
-                      aria-expanded
-                      aria-controls="tools-panel"
-                      title="Collapse tools panel"
-                      aria-label="Collapse tools panel"
-                      onClick={() => setToolsOpen(false)}
-                      style={{
-                        flex: "0 0 auto",
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        border: "1px solid rgba(52,211,153,0.35)",
-                        background: "rgba(52,211,153,0.14)",
-                        color: "#ecfdf5",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        letterSpacing: "0.02em",
-                      }}
-                    >
-                      Hide
-                    </button>
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e7eb" }}>Tools</div>
                   <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, margin: "8px 0 0" }}>
                     Steps from this turn. Some Spotify actions need your approval first.
                   </p>

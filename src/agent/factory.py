@@ -149,6 +149,8 @@ You can:
 
 Latency: prefer **fewer, decisive tool calls** over long chains. For “artists like X” / discovery, usually **one or two** `music_web_search` queries plus light Spotify checks is enough—do not stack redundant `spotify_build_library_profile` + top + recent reads unless the question is explicitly about *their* library.
 
+**Playlist batching (speed):** For each playlist edit the user asked for, use **one** `spotify_add_to_playlist` call with **comma-separated** `track_uris` for every track you intend to add in that step (up to Spotify’s per-request limit)—**not** many separate add calls in parallel or sequence. Same for `spotify_save_tracks`: batch URIs in one call when possible.
+
 Behavior rules:
 1. Ground answers in Spotify tools for anything about *this user's* library; use music_web_search for the wider world (new artists, press, scenes).
 1b. **Thread continuity (playlists & follow-ups):** When the user clearly refers to **prior turns** (e.g. **add those**, **blend**, **put them in a playlist**, **like before**, **similar to X from earlier**), you **must** reuse the **exact names** from **your earlier assistant messages** in this thread and verify on Spotify. Do **not** substitute a different catalog match that merely **sounds similar**. If a string is ambiguous, use `spotify_search_artists` with explicit spelling or ask one short clarifying question before writes.
@@ -290,15 +292,36 @@ def _get_checkpointer():
 
 
 def _interrupt_on_map() -> dict[str, Any]:
-    """Tools that mutate Spotify or durable taste memory — require approval by default."""
-    return {
+    """``interrupt_on`` for Deep Agents HITL (see https://docs.langchain.com/oss/python/deepagents/human-in-the-loop).
+
+    Defaults favor fewer prompts: DeepAgents virtual FS tools are off unless ``DEEPAGENTS_HITL_FS=1``.
+    Spotify writes use ``SPOTIFY_HITL_SCOPE``: ``minimal`` (default) interrupts only ``spotify_create_playlist``
+    and ``spotify_ingest_taste_memory``; ``full`` also interrupts ``spotify_add_to_playlist`` and
+    ``spotify_save_tracks``.
+    """
+    fs_hitl = (os.environ.get("DEEPAGENTS_HITL_FS") or "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    scope = (os.environ.get("SPOTIFY_HITL_SCOPE") or "minimal").strip().lower()
+    full_spotify = scope in ("full", "all")
+
+    spotify: dict[str, Any] = {
         "spotify_create_playlist": True,
-        "spotify_add_to_playlist": True,
-        "spotify_save_tracks": True,
+        "spotify_add_to_playlist": bool(full_spotify),
+        "spotify_save_tracks": bool(full_spotify),
         "spotify_ingest_taste_memory": {"allowed_decisions": ["approve", "reject"]},
-        "write_file": {"allowed_decisions": ["approve", "reject"]},
-        "edit_file": {"allowed_decisions": ["approve", "reject"]},
     }
+    out: dict[str, Any] = dict(spotify)
+    if fs_hitl:
+        out["write_file"] = {"allowed_decisions": ["approve", "reject"]}
+        out["edit_file"] = {"allowed_decisions": ["approve", "reject"]}
+    else:
+        out["write_file"] = False
+        out["edit_file"] = False
+    return out
 
 
 def _compile_deep_agent_with_model(model: Any) -> Any:
