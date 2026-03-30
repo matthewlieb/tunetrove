@@ -6,7 +6,7 @@ from typing import Optional
 from langchain_core.tools import tool
 
 from src.auth.spotify_auth import get_oauth, get_user_token, save_user_token
-from src.tools.spotify_context import get_spotify_anonymous_allowed, get_spotify_user_context
+from src.tools.spotify_context import get_spotify_anonymous_allowed, resolve_spotify_user_id_for_tools
 from src.tools.taste_memory import MemoryDoc, ingest_memory_docs, retrieve_memory_docs
 
 _SPOTIFY_CLIENT: Optional["SpotifyClient"] = None
@@ -109,7 +109,7 @@ class SpotifyClient:
 
 def _get_client() -> Optional[SpotifyClient]:
     global _SPOTIFY_CLIENT
-    current_user = get_spotify_user_context()
+    current_user = resolve_spotify_user_id_for_tools()
     if current_user:
         try:
             return SpotifyClient(user_id=current_user)

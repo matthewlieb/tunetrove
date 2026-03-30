@@ -85,6 +85,7 @@ Spotify tools need a **stored token** in Supabase (**`spotify_users`** via `get_
 | `CORS_ALLOW_ORIGINS` | Required for **direct** API mode; for proxy-only you can omit or set to your UI origin |
 | `OPENAI_API_KEY` / `TAVILY_API_KEY` | Required for the agent |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Required for storing Spotify tokens (see repo auth code) |
+| `USER_LLM_KEYS_FERNET_KEY` | **Optional but required for BYOK**: Fernet key so users can save their own OpenAI/Anthropic keys in the UI. Without it, the sidebar shows *BYOK not enabled*; host-paid **`OPENAI_API_KEY`** still works. |
 | `CHECKPOINT_DATABASE_URL` | **Strongly recommended** for production (Postgres; Supabase pooler works) so chat threads survive restarts and HITL works reliably |
 | `AGENT_TIMEOUT_SECONDS` | Keep aligned with your host’s max request time |
 

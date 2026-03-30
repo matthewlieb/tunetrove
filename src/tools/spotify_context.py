@@ -21,6 +21,33 @@ def get_spotify_user_context() -> str | None:
     return _CURRENT_USER_ID.get()
 
 
+def resolve_spotify_user_id_for_tools() -> str | None:
+    """Spotify user id for tool execution.
+
+    FastAPI sets :func:`set_spotify_user_context` on the request thread. LangGraph may run
+    tools without inheriting that :class:`contextvars.ContextVar`, which produced false
+    "Spotify is not configured" despite an active session. In that case, read
+    ``thread_id`` from the LangGraph runnable config (see ``_parse_chat_turn`` in
+    ``app.py``): ``"{spotify_user_id}::{conversation_id}"`` or plain ``spotify_user_id``.
+    """
+    ctx = get_spotify_user_context()
+    if ctx:
+        return ctx.strip()
+    try:
+        from langgraph.config import get_config
+
+        tid = (get_config().get("configurable") or {}).get("thread_id")
+        if isinstance(tid, str) and tid.strip():
+            base = tid.split("::", 1)[0].strip()
+            if base and base != "anonymous":
+                return base
+    except RuntimeError:
+        pass
+    except Exception:
+        pass
+    return None
+
+
 def set_spotify_anonymous_allowed(allowed: bool) -> None:
     _ALLOW_ANONYMOUS_SPOTIFY.set(allowed)
 
