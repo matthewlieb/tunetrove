@@ -1,0 +1,14 @@
+/* Scoped markdown from `ChatMarkdown` — beats browser default link blue */
+.chat-md-root a.chat-md-link,
+.chat-md-root a.chat-md-link:visited {
+  color: #6ee7b7;
+  text-decoration: underline;
+  text-decoration-color: rgba(110, 231, 183, 0.38);
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+
+.chat-md-root a.chat-md-link:hover {
+  color: #a7f3d0;
+  text-decoration-color: rgba(167, 243, 208, 0.55);
+}

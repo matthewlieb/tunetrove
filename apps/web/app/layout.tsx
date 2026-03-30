@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
+import "./globals.css";
+
 const appName = (process.env.NEXT_PUBLIC_APP_NAME || "TempoTrove").trim();
 
 export const metadata: Metadata = {

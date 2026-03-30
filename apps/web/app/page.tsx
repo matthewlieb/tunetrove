@@ -1661,48 +1661,76 @@ export default function HomePage() {
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    marginBottom: 6,
+                    flexShrink: 0,
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 2,
+                    alignSelf: "stretch",
+                    marginLeft: -12,
+                    marginRight: -12,
+                    marginTop: -12,
+                    paddingLeft: 12,
+                    paddingRight: 12,
+                    paddingTop: 12,
+                    paddingBottom: 10,
+                    background: "#0f172a",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e7eb" }}>Tools</div>
-                  <button
-                    type="button"
-                    aria-expanded
-                    aria-controls="tools-panel"
-                    title="Collapse tools panel"
-                    aria-label="Collapse tools panel"
-                    onClick={() => setToolsOpen(false)}
+                  <div
                     style={{
-                      flexShrink: 0,
-                      marginTop: -2,
-                      padding: "5px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(52,211,153,0.28)",
-                      background: "rgba(52,211,153,0.1)",
-                      color: "#a7f3d0",
-                      cursor: "pointer",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      lineHeight: 1.2,
-                      letterSpacing: "0.02em",
-                      textTransform: "uppercase",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
-                    Hide
-                  </button>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#e5e7eb",
+                        flex: "1 1 auto",
+                        minWidth: 0,
+                      }}
+                    >
+                      Tools
+                    </div>
+                    <button
+                      type="button"
+                      aria-expanded
+                      aria-controls="tools-panel"
+                      title="Collapse tools panel"
+                      aria-label="Collapse tools panel"
+                      onClick={() => setToolsOpen(false)}
+                      style={{
+                        flex: "0 0 auto",
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: "1px solid rgba(52,211,153,0.35)",
+                        background: "rgba(52,211,153,0.14)",
+                        color: "#ecfdf5",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        letterSpacing: "0.02em",
+                        fontVariant: "small-caps",
+                      }}
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, margin: "8px 0 0" }}>
+                    Steps from this turn. Some Spotify actions need your approval first.
+                  </p>
                 </div>
-                <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, marginBottom: 8 }}>
-                  Steps from this turn. Some Spotify actions need your approval first.
-                </p>
                 <div
                   style={{
                     flex: 1,
                     minHeight: 0,
-                    overflowY: compact ? "auto" : "hidden",
+                    overflowY: compact ? "auto" : "auto",
                     overflowX: "hidden",
                     display: "flex",
                     flexDirection: "column",
@@ -1711,10 +1739,39 @@ export default function HomePage() {
                   {activityTrace.length > 0 ? (
                     <ToolTrace entries={activityTrace} variant="panel" />
                   ) : (
-                    <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", paddingTop: 4 }}>
                       {busy ? "Waiting…" : "No tools yet."}
                     </div>
                   )}
+                </div>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    paddingTop: 10,
+                    marginTop: "auto",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-controls="tools-panel"
+                    title="Collapse tools panel"
+                    aria-label="Collapse tools panel"
+                    onClick={() => setToolsOpen(false)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(0,0,0,0.22)",
+                      color: "#9ca3af",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Collapse tools panel
+                  </button>
                 </div>
               </aside>
             ) : null}
