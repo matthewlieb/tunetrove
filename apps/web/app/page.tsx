@@ -486,7 +486,14 @@ export default function HomePage() {
       if (auth === "error") {
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: "Spotify login failed. Please try again." },
+          {
+            role: "assistant",
+            content:
+              "Spotify login did not complete (state or token exchange failed, or cookies were blocked). " +
+              "Try again in **Chrome or Safari**, turn off strict tracking blocking for this site, " +
+              "and ensure the API has **SESSION_SECRET** and (on HTTPS) **SESSION_COOKIE_SECURE=1** set. " +
+              "If it keeps failing, check Railway logs for `/auth/callback`.",
+          },
         ]);
       }
     }

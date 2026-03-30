@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import os
 import secrets
+import time
 from threading import Lock
 
 # Lazy-import httpx inside call sites so `import src.web.app` stays fast.
@@ -107,8 +111,52 @@ def get_oauth():
     )
 
 
+_OAUTH_STATE_MAX_AGE_SEC = 900  # 15 minutes
+
+
+def _oauth_state_signing_key() -> bytes:
+    """Same secret as session signing so deploys only need SESSION_SECRET once."""
+    raw = (os.environ.get("SESSION_SECRET") or "").strip()
+    if not raw:
+        return b"dev-insecure-oauth-state-only-not-for-production"
+    return raw.encode("utf-8")
+
+
 def make_state() -> str:
-    return secrets.token_urlsafe(32)
+    """Build Spotify ``state`` (CSRF token) without storing anything in the server session.
+
+    Privacy browsers (e.g. DuckDuckGo) often block or partition the session cookie on the
+    trip to Spotify, so the callback could not read ``oauth_state`` from the session. A
+    short-lived HMAC lets us verify the redirect without that cookie.
+    """
+    nonce = secrets.token_urlsafe(24)
+    ts = str(int(time.time()))
+    msg = f"v1.{nonce}.{ts}"
+    sig = hmac.new(_oauth_state_signing_key(), msg.encode("utf-8"), hashlib.sha256).hexdigest()
+    raw = f"{msg}.{sig}".encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def verify_oauth_state(state: str | None) -> bool:
+    if not state or not isinstance(state, str) or not state.strip():
+        return False
+    try:
+        pad = (-len(state)) % 4
+        payload = base64.urlsafe_b64decode(state.encode("ascii") + b"=" * pad).decode("utf-8")
+        parts = payload.rsplit(".", 1)
+        if len(parts) != 2:
+            return False
+        msg, sig = parts
+        bits = msg.split(".")
+        if len(bits) != 3 or bits[0] != "v1":
+            return False
+        ts = int(bits[2])
+        if abs(int(time.time()) - ts) > _OAUTH_STATE_MAX_AGE_SEC:
+            return False
+        expected = hmac.new(_oauth_state_signing_key(), msg.encode("utf-8"), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, sig)
+    except Exception:
+        return False
 
 
 def save_user_token(user: dict, token_info: dict) -> None:

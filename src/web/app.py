@@ -27,7 +27,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from src.agent import stream_chat_chunks, thread_uses_langgraph_checkpoint
-from src.auth import get_oauth, get_user_profile, make_state, save_user_token
+from src.auth import get_oauth, get_user_profile, make_state, save_user_token, verify_oauth_state
 from src.tools.spotify_context import set_spotify_user_context
 
 # In-memory store: thread_id -> list of messages (when not using checkpointer)
@@ -603,8 +603,6 @@ def spotify_login(request: Request):
     try:
         oauth = get_oauth()
         state = make_state()
-        request.session["oauth_state"] = state
-        request.session["oauth_created"] = True
         auth_url = oauth.get_authorize_url(state=state)
         return {"auth_url": auth_url}
     except Exception as e:
@@ -624,8 +622,13 @@ def spotify_callback(request: Request, code: str | None = None, state: str | Non
     """Handle Spotify OAuth callback and persist user token."""
     frontend = os.environ.get("FRONTEND_URL", "http://127.0.0.1:3003")
     try:
-        expected_state = request.session.get("oauth_state")
-        if not code or not state or not expected_state or state != expected_state:
+        state_ok = verify_oauth_state(state)
+        if not code or not state_ok:
+            _LOG.warning(
+                "Spotify OAuth callback rejected: code_present=%s state_verified=%s",
+                bool(code),
+                state_ok,
+            )
             return RedirectResponse(f"{frontend}?spotify_auth=error")
         oauth = get_oauth()
         token_info = oauth.get_access_token(code)
@@ -641,7 +644,6 @@ def spotify_callback(request: Request, code: str | None = None, state: str | Non
             "display_name": user.get("display_name", ""),
             "email": user.get("email", ""),
         }
-        request.session.pop("oauth_state", None)
         return RedirectResponse(f"{frontend}?spotify_auth=success")
     except Exception:
         return RedirectResponse(f"{frontend}?spotify_auth=error")

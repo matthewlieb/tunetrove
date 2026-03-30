@@ -5,6 +5,7 @@ from .spotify_auth import (
     get_user_token,
     make_state,
     save_user_token,
+    verify_oauth_state,
 )
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "get_user_token",
     "make_state",
     "save_user_token",
+    "verify_oauth_state",
 ]
 
