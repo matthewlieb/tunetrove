@@ -222,6 +222,8 @@ function parseSseChunks(buffer: string): {
   return { events, rest };
 }
 
+const TOOLS_PANEL_LS = "tempotrove-tools-panel";
+
 export default function HomePage() {
   const [fromId] = useState(() => {
     if (typeof window === "undefined") return `web-${crypto.randomUUID()}`;
@@ -259,12 +261,39 @@ export default function HomePage() {
   const [showLlmOpenai, setShowLlmOpenai] = useState(false);
   const [showLlmAnthropic, setShowLlmAnthropic] = useState(false);
 
+  const [toolsOpen, setToolsOpenState] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return localStorage.getItem(TOOLS_PANEL_LS) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setToolsOpen = useCallback((open: boolean) => {
+    setToolsOpenState(open);
+    try {
+      localStorage.setItem(TOOLS_PANEL_LS, open ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const list = useMemo(() => messages.filter((m) => m.role !== "system"), [messages]);
   const sortedSessions = useMemo(
     () => [...chatSessions].sort((a, b) => b.updatedAt - a.updatedAt),
     [chatSessions],
   );
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const sync = () => setCompact(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   const storageScope = spotifyUser?.id ?? "anon";
 
@@ -954,20 +983,25 @@ export default function HomePage() {
       <div
         style={{
           display: "flex",
-          maxWidth: 1320,
+          flexDirection: compact ? "column" : "row",
+          maxWidth: compact ? "100%" : 1320,
           margin: "0 auto",
           height: "100%",
           minHeight: 0,
+          boxSizing: "border-box",
+          padding: compact ? "0 10px 10px" : 0,
         }}
       >
         <aside
           style={{
-            width: 272,
+            width: compact ? "100%" : 272,
+            maxHeight: compact ? "min(44vh, 380px)" : undefined,
             flexShrink: 0,
-            borderRight: "1px solid rgba(255,255,255,0.08)",
+            borderRight: compact ? "none" : "1px solid rgba(255,255,255,0.08)",
+            borderBottom: compact ? "1px solid rgba(255,255,255,0.08)" : "none",
             display: "flex",
             flexDirection: "column",
-            padding: "14px 12px",
+            padding: compact ? "12px 0" : "14px 12px",
             gap: 14,
             minHeight: 0,
             overflowY: "auto",
@@ -1312,7 +1346,16 @@ export default function HomePage() {
           </div>
         </aside>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
           {apiReachable === false && (
             <div
               style={{
@@ -1340,7 +1383,15 @@ export default function HomePage() {
             </div>
           )}
 
-          <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: compact ? "column" : "row",
+              minHeight: 0,
+              overflow: "hidden",
+            }}
+          >
             <section
               style={{
                 flex: 1,
@@ -1349,12 +1400,14 @@ export default function HomePage() {
                 display: "flex",
                 flexDirection: "column",
                 border: "1px solid rgba(167,139,250,0.1)",
-                borderRadius: 0,
+                borderRadius: compact ? 0 : 0,
                 background: "linear-gradient(165deg, rgba(255,255,255,0.04) 0%, rgba(15,23,42,0.5) 100%)",
-                margin: 12,
-                marginRight: 0,
-                borderTopLeftRadius: 16,
-                borderBottomLeftRadius: 16,
+                margin: compact ? "8px 0 0" : 12,
+                marginRight: compact ? 0 : 0,
+                borderTopLeftRadius: compact ? 12 : 16,
+                borderBottomLeftRadius: compact ? 12 : 16,
+                borderTopRightRadius: compact ? 12 : !compact && toolsOpen ? 0 : 16,
+                borderBottomRightRadius: compact ? 12 : !compact && toolsOpen ? 0 : 16,
                 overflow: "hidden",
               }}
             >
@@ -1457,7 +1510,7 @@ export default function HomePage() {
                   </div>
                 </div>
               )}
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, minWidth: 0, width: "100%", alignItems: "stretch" }}>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -1470,6 +1523,7 @@ export default function HomePage() {
                 placeholder='e.g. "up and coming indie 2026"'
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   padding: "12px 12px",
                   borderRadius: 12,
                   border: "1px solid rgba(255,255,255,0.12)",
@@ -1481,9 +1535,11 @@ export default function HomePage() {
                 disabled={busy || Boolean(pendingHitl)}
               />
               <button
+                type="button"
                 onClick={() => void send()}
                 disabled={busy || !input.trim() || Boolean(pendingHitl)}
                 style={{
+                  flexShrink: 0,
                   padding: "12px 16px",
                   minHeight: 44,
                   borderRadius: 12,
@@ -1501,37 +1557,165 @@ export default function HomePage() {
             </div>
           </section>
 
-            <aside
-              style={{
-                width: 252,
-                flexShrink: 0,
-                margin: 12,
-                marginLeft: 0,
-                padding: 12,
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderTopRightRadius: 16,
-                borderBottomRightRadius: 16,
-                background: "rgba(255,255,255,0.03)",
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e7eb", marginBottom: 6 }}>Tools</div>
-              <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, marginBottom: 8 }}>
-                Steps from this turn. Some Spotify actions need your approval first.
-              </p>
-              <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {activityTrace.length > 0 ? (
-                  <ToolTrace entries={activityTrace} variant="panel" />
-                ) : (
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>
-                    {busy ? "Waiting…" : "No tools yet."}
-                  </div>
-                )}
-              </div>
-            </aside>
+            {!compact && !toolsOpen ? (
+              <button
+                type="button"
+                aria-expanded={false}
+                aria-controls="tools-panel"
+                aria-label="Show tools panel"
+                onClick={() => setToolsOpen(true)}
+                style={{
+                  width: 44,
+                  flexShrink: 0,
+                  alignSelf: "stretch",
+                  margin: 12,
+                  marginLeft: 0,
+                  padding: "10px 0",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 0,
+                  borderTopRightRadius: 16,
+                  borderBottomRightRadius: 16,
+                  background: "rgba(255,255,255,0.03)",
+                  color: "#e5e7eb",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    writingMode: "vertical-rl",
+                    transform: "rotate(180deg)",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "#9ca3af",
+                  }}
+                >
+                  Tools
+                </span>
+                <span aria-hidden style={{ color: "#34d399", fontSize: 16, fontWeight: 800 }}>
+                  ‹
+                </span>
+              </button>
+            ) : null}
+
+            {compact && !toolsOpen ? (
+              <button
+                type="button"
+                aria-expanded={false}
+                aria-controls="tools-panel"
+                aria-label="Show tools panel"
+                onClick={() => setToolsOpen(true)}
+                style={{
+                  flexShrink: 0,
+                  width: "100%",
+                  margin: "8px 0 0",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px dashed rgba(255,255,255,0.16)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "#c7cad1",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
+              >
+                Tools
+                {activityTrace.length > 0 ? ` · ${activityTrace.length} step${activityTrace.length === 1 ? "" : "s"}` : ""}{" "}
+                · Show
+              </button>
+            ) : null}
+
+            {toolsOpen ? (
+              <aside
+                id="tools-panel"
+                aria-label="Tool trace"
+                style={{
+                  width: compact ? "100%" : 252,
+                  maxHeight: compact ? "min(34vh, 280px)" : undefined,
+                  flexShrink: 0,
+                  margin: compact ? "8px 0 0" : 12,
+                  marginLeft: compact ? 0 : 0,
+                  padding: 12,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: compact ? 12 : 0,
+                  borderTopRightRadius: compact ? 12 : 16,
+                  borderBottomRightRadius: compact ? 12 : 16,
+                  borderTopLeftRadius: compact ? 12 : 0,
+                  borderBottomLeftRadius: compact ? 12 : 0,
+                  background: "rgba(255,255,255,0.03)",
+                  minHeight: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    marginBottom: 6,
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e7eb" }}>Tools</div>
+                  <button
+                    type="button"
+                    aria-expanded
+                    aria-controls="tools-panel"
+                    title="Hide tools panel"
+                    aria-label="Hide tools panel"
+                    onClick={() => setToolsOpen(false)}
+                    style={{
+                      flexShrink: 0,
+                      marginTop: -2,
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(0,0,0,0.2)",
+                      color: "#9ca3af",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ›
+                  </button>
+                </div>
+                <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, marginBottom: 8 }}>
+                  Steps from this turn. Some Spotify actions need your approval first.
+                </p>
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: compact ? "auto" : "hidden",
+                    overflowX: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {activityTrace.length > 0 ? (
+                    <ToolTrace entries={activityTrace} variant="panel" />
+                  ) : (
+                    <div style={{ fontSize: 11, color: "#6b7280" }}>
+                      {busy ? "Waiting…" : "No tools yet."}
+                    </div>
+                  )}
+                </div>
+              </aside>
+            ) : null}
           </div>
         </div>
       </div>
