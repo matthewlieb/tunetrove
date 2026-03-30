@@ -8,7 +8,6 @@ from src.auth.spotify_auth import get_oauth, get_user_token, save_user_token
 from src.tools.spotify_context import (
     get_spotify_anonymous_allowed,
     get_spotify_user_context,
-    resolve_spotify_user_id_for_tools,
     set_spotify_user_context,
 )
 from src.tools.taste_memory import MemoryDoc, ingest_memory_docs
@@ -117,7 +116,12 @@ def _get_client(
     user_id: str | None = None,
 ) -> Optional[SpotifyClient]:
     """Internal helper to get a client instance using explicit binding or request context."""
-    current_user_id = user_id.strip() if isinstance(user_id, str) and user_id.strip() else resolve_spotify_user_id_for_tools()
+    ctx_user_id = get_spotify_user_context()
+    current_user_id = (
+        user_id.strip()
+        if isinstance(user_id, str) and user_id.strip()
+        else (ctx_user_id.strip() if isinstance(ctx_user_id, str) and ctx_user_id.strip() else None)
+    )
     try:
         return SpotifyClient(access_token=access_token, user_id=current_user_id)
     except Exception:
@@ -125,7 +129,7 @@ def _get_client(
 
 
 def _session_user_id() -> str | None:
-    uid = resolve_spotify_user_id_for_tools()
+    uid = get_spotify_user_context()
     if isinstance(uid, str) and uid.strip():
         return uid.strip()
     return None
@@ -388,6 +392,7 @@ def get_spotify_tools(access_token: str | None = None, user_id: str | None = Non
         return base
 
     def _invoke_bound(tool_obj: BaseTool, payload: dict) -> str:
+        payload = dict(payload)
         prev_user = get_spotify_user_context()
         if bound_user_id:
             set_spotify_user_context(bound_user_id)
