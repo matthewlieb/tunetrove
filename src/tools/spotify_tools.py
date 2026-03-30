@@ -123,6 +123,30 @@ def _get_client(
     except Exception:
         return None
 
+
+def _session_user_id() -> str | None:
+    uid = resolve_spotify_user_id_for_tools()
+    if isinstance(uid, str) and uid.strip():
+        return uid.strip()
+    return None
+
+
+def _require_session_user_match(client: SpotifyClient) -> str | None:
+    """Return an error string when session user and token owner differ."""
+    expected_user_id = _session_user_id()
+    if not expected_user_id:
+        return "Spotify session missing. Please connect Spotify for this user first."
+    try:
+        actual_user_id = client.current_user_id()
+    except Exception:
+        return "Could not verify Spotify account for this session. Please reconnect Spotify."
+    if actual_user_id != expected_user_id:
+        return (
+            "Spotify account mismatch detected. "
+            "Please reconnect Spotify, then try again."
+        )
+    return None
+
 # --- Helper Summarizers ---
 def _track_summary(t):
     """Formats track data for clear tool output."""
@@ -228,6 +252,9 @@ def spotify_create_playlist(name: str, description: str = "", access_token: str 
     client = _get_client(access_token)
     if not client:
         return "Spotify session missing."
+    mismatch = _require_session_user_match(client)
+    if mismatch:
+        return mismatch
     try:
         pid, uri = client.create_playlist(name=name, description=description)
         return f"Successfully created playlist '{name}'. ID: {pid}"
@@ -240,6 +267,9 @@ def spotify_add_to_playlist(playlist_id: str, track_uris: str, access_token: str
     client = _get_client(access_token)
     if not client:
         return "Spotify session missing."
+    mismatch = _require_session_user_match(client)
+    if mismatch:
+        return mismatch
     try:
         uris = [u.strip() for u in track_uris.split(",") if u.strip()]
         if not uris:
@@ -257,6 +287,9 @@ def spotify_save_tracks(track_uris: str, access_token: str = None) -> str:
     client = _get_client(access_token)
     if not client:
         return "Spotify session missing."
+    mismatch = _require_session_user_match(client)
+    if mismatch:
+        return mismatch
     try:
         uris = [u.strip() for u in track_uris.split(",") if u.strip()]
         if not uris:
