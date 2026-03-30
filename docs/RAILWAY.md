@@ -12,11 +12,19 @@ The **Next.js UI** stays on Vercel (`apps/web`). This doc is for **`src/web/app.
 
 The **`Dockerfile`** sets `ENV PYTHONPATH=/app` and **`CMD`** runs **`uvicorn`** on **`$PORT`**. Do **not** set a custom Railway start command like `PYTHONPATH=. uvicorn …` — some runners misparse that and error with “executable `pythonpath=.` not found.”
 
-If you overrode the start command in the Railway UI, clear it so the image’s `CMD` runs.
+### If you see: `The executable 'pythonpath=.' could not be found`
+
+1. **Railway dashboard → your service → Settings → Deploy** — open **Start Command**.
+2. **Delete** the whole field **or** set it exactly to:
+   ```text
+   uvicorn src.web.app:app --host 0.0.0.0 --port $PORT
+   ```
+   Never use `PYTHONPATH=. uvicorn …` in that box.
+3. Redeploy. `PYTHONPATH` is already `/app` inside the Docker image.
 
 ## 3. Build / install
 
-Nixpacks should run something like `pip install .` from `pyproject.toml`. If the build fails, add a **Railway variable** or use a **Dockerfile** (optional future step).
+The **`Dockerfile`** runs **`pip install .`** from **`pyproject.toml`** and copies **`src`** and **`skills`** into the image. There is no Nixpacks Python build step.
 
 ## 4. Environment variables (Production)
 

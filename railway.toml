@@ -5,8 +5,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Use Dockerfile CMD only. Railway was treating "PYTHONPATH=." as the executable name.
-# PYTHONPATH is set in the Dockerfile (ENV PYTHONPATH=/app).
+# Must NOT use "PYTHONPATH=. uvicorn …" — Railway parses that as an executable named "pythonpath=.".
+# PYTHONPATH is already ENV in the Dockerfile. If this still fails, delete "Start Command" in the Railway UI.
+startCommand = "uvicorn src.web.app:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
