@@ -80,6 +80,7 @@ def _scope() -> str:
 
 
 def get_oauth():
+    from spotipy.cache_handler import MemoryCacheHandler
     from spotipy.oauth2 import SpotifyOAuth
 
     client_id = os.environ.get("SPOTIFY_CLIENT_ID")
@@ -87,11 +88,21 @@ def get_oauth():
     redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8013/auth/callback")
     if not client_id or not client_secret:
         raise ValueError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET are required")
+    show_dialog = (os.environ.get("SPOTIFY_SHOW_DIALOG") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
     return SpotifyOAuth(
         client_id=client_id,
         client_secret=client_secret,
         redirect_uri=redirect_uri,
         scope=_scope(),
+        show_dialog=show_dialog,
+        # Do not use a shared file cache on the API server; otherwise one
+        # user's cached token can be reused for another user's callback.
+        cache_handler=MemoryCacheHandler(),
         open_browser=False,
     )
 

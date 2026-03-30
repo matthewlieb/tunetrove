@@ -279,6 +279,13 @@ export default function HomePage() {
   }, []);
 
   const list = useMemo(() => messages.filter((m) => m.role !== "system"), [messages]);
+  const spotifyUserLabel = useMemo(() => {
+    if (!spotifyUser) return "";
+    const id = (spotifyUser.id || "").trim();
+    const name = (spotifyUser.display_name || "").trim();
+    if (name && id && name !== id) return `${name} (@${id})`;
+    return name || id || "";
+  }, [spotifyUser]);
   const sortedSessions = useMemo(
     () => [...chatSessions].sort((a, b) => b.updatedAt - a.updatedAt),
     [chatSessions],
@@ -1023,7 +1030,7 @@ export default function HomePage() {
           </div>
           {spotifyUser ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ color: "#9ca3af", fontSize: 11, lineHeight: 1.35 }}>{spotifyUser.display_name || spotifyUser.id}</span>
+              <span style={{ color: "#9ca3af", fontSize: 11, lineHeight: 1.35 }}>{spotifyUserLabel}</span>
               <button
                 type="button"
                 onClick={() => void logoutSpotify()}
