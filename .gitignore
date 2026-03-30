@@ -1,0 +1,27 @@
+.env
+apps/web/.env.local
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.next/
+node_modules/
+.turbo/
+
+# Optional local server logs / PIDs (not part of the product; don’t commit)
+.uvicorn-dev*.log
+.uvicorn-dev.pid
+
+# Local dev logs/PIDs from scripts/start-local.sh
+.dev/
+.cache
+.cache/
+
+# TypeScript incremental (local)
+apps/web/tsconfig.tsbuildinfo

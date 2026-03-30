@@ -1,0 +1,30 @@
+{
+  "name": "spotify-llm-web",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3003",
+    "dev:turbo": "next dev --turbo -H 127.0.0.1 -p 3003",
+    "build": "next build",
+    "start": "next start -p 3003",
+    "lint": "eslint --config .eslintrc.json --max-warnings 0 app components lib"
+  },
+  "dependencies": {
+    "next": "15.5.14",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "15.5.14",
+    "typescript": "^5.7.0"
+  }
+}
