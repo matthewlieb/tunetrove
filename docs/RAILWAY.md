@@ -8,13 +8,11 @@ The **Next.js UI** stays on Vercel (`apps/web`). This doc is for **`src/web/app.
 2. **Root directory:** leave **repo root** (not `apps/web` — that is only for Vercel).
 3. The repo ships a **`Dockerfile`** + **`railway.toml`** (Docker builder). Railway builds the image, runs **`uvicorn`** on **`$PORT`**, and health-checks **`/health`**. If you ever switch away from Docker, Nixpacks may fail on this `hatchling` layout — prefer Docker.
 
-## 2. Start command (already in `railway.toml`)
+## 2. Start command
 
-```bash
-PYTHONPATH=. uvicorn src.web.app:app --host 0.0.0.0 --port $PORT
-```
+The **`Dockerfile`** sets `ENV PYTHONPATH=/app` and **`CMD`** runs **`uvicorn`** on **`$PORT`**. Do **not** set a custom Railway start command like `PYTHONPATH=. uvicorn …` — some runners misparse that and error with “executable `pythonpath=.` not found.”
 
-`$PORT` is set by Railway. **`PYTHONPATH=.`** is required so `src.*` imports resolve.
+If you overrode the start command in the Railway UI, clear it so the image’s `CMD` runs.
 
 ## 3. Build / install
 
