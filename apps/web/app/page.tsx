@@ -1716,7 +1716,6 @@ export default function HomePage() {
                         fontWeight: 700,
                         lineHeight: 1.2,
                         letterSpacing: "0.02em",
-                        fontVariant: "small-caps",
                       }}
                     >
                       Hide
