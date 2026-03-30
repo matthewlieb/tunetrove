@@ -1673,24 +1673,26 @@ export default function HomePage() {
                     type="button"
                     aria-expanded
                     aria-controls="tools-panel"
-                    title="Hide tools panel"
-                    aria-label="Hide tools panel"
+                    title="Collapse tools panel"
+                    aria-label="Collapse tools panel"
                     onClick={() => setToolsOpen(false)}
                     style={{
                       flexShrink: 0,
                       marginTop: -2,
-                      padding: "4px 8px",
+                      padding: "5px 10px",
                       borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(0,0,0,0.2)",
-                      color: "#9ca3af",
+                      border: "1px solid rgba(52,211,153,0.28)",
+                      background: "rgba(52,211,153,0.1)",
+                      color: "#a7f3d0",
                       cursor: "pointer",
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 700,
-                      lineHeight: 1,
+                      lineHeight: 1.2,
+                      letterSpacing: "0.02em",
+                      textTransform: "uppercase",
                     }}
                   >
-                    ›
+                    Hide
                   </button>
                 </div>
                 <p style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.45, marginBottom: 8 }}>
