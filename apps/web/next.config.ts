@@ -1,4 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
+
+import { loadEnvConfig } from "@next/env";
+
+/**
+ * Load repo-root `.env` first, then `apps/web` (`.env.local` overrides root for the same key).
+ * Next’s default is cwd-only; monorepo API/env secrets often live in the repository root.
+ */
+const repoRoot = path.join(process.cwd(), "..");
+loadEnvConfig(repoRoot);
+loadEnvConfig(process.cwd());
 
 /**
  * `/api/agent/*` is handled by `app/api/agent/[[...path]]/route.ts` (explicit proxy).
