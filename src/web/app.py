@@ -188,6 +188,12 @@ _session_https = (os.environ.get("SESSION_COOKIE_SECURE") or "").strip().lower()
 _ss = (os.environ.get("SESSION_SAME_SITE") or "lax").strip().lower()
 if _ss not in ("lax", "strict", "none"):
     _ss = "lax"
+# Browsers require ``Secure`` when SameSite=None; otherwise the cookie is dropped.
+if _ss == "none" and not _session_https:
+    _LOG.warning(
+        "SESSION_SAME_SITE=none requires SESSION_COOKIE_SECURE=1 — enabling https_only for the session cookie."
+    )
+    _session_https = True
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", secrets.token_hex(32)),

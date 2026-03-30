@@ -395,7 +395,7 @@ export default function HomePage() {
     }
   }
 
-  async function refreshAuthStatus() {
+  async function refreshAuthStatus(): Promise<boolean> {
     try {
       const res = await fetchWithTimeout(
         agentApiUrl("/auth/status"),
@@ -415,13 +415,15 @@ export default function HomePage() {
         if (!data.llm_keys || typeof data.llm_keys !== "object") {
           void mergeLlmFromDedicatedEndpointQuiet();
         }
-      } else {
-        setSpotifyUser(null);
-        setLlmKeyStatus(null);
+        return true;
       }
+      setSpotifyUser(null);
+      setLlmKeyStatus(null);
+      return false;
     } catch {
       setSpotifyUser(null);
       setLlmKeyStatus(null);
+      return false;
     } finally {
       setAuthReady(true);
     }
@@ -477,13 +479,33 @@ export default function HomePage() {
         if (!cancelled) setAgentWarmup(null);
       }
     })();
-    void refreshAuthStatus();
     const params = new URLSearchParams(window.location.search);
     const auth = params.get("spotify_auth");
-    if (auth === "success" || auth === "error") {
-      void refreshAuthStatus();
+    if (auth === "success") {
       window.history.replaceState({}, "", "/");
+      void (async () => {
+        const waits = [0, 120, 350, 900];
+        for (let i = 0; i < waits.length; i++) {
+          if (waits[i]! > 0) await new Promise((r) => setTimeout(r, waits[i]));
+          if (cancelled) return;
+          if (await refreshAuthStatus()) return;
+        }
+        if (cancelled) return;
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              "Spotify returned success, but this browser still has no session cookie. " +
+              "On DuckDuckGo try allowing **cookies for tempotrove.com**, set Railway **SESSION_COOKIE_SECURE=1**, " +
+              "and if needed **SESSION_SAME_SITE=none** (with Secure). Or test in Chrome/Safari.",
+          },
+        ]);
+      })();
+    } else {
+      void refreshAuthStatus();
       if (auth === "error") {
+        window.history.replaceState({}, "", "/");
         setMessages((m) => [
           ...m,
           {
@@ -491,7 +513,7 @@ export default function HomePage() {
             content:
               "Spotify login did not complete (state or token exchange failed, or cookies were blocked). " +
               "Try again in **Chrome or Safari**, turn off strict tracking blocking for this site, " +
-              "and ensure the API has **SESSION_SECRET** and (on HTTPS) **SESSION_COOKIE_SECURE=1** set. " +
+              "and ensure the API has **SESSION_SECRET** and **SESSION_COOKIE_SECURE=1** on Railway. " +
               "If it keeps failing, check Railway logs for `/auth/callback`.",
           },
         ]);
