@@ -1,9 +1,10 @@
 """Spotify tools: search, playlist actions, and taste-profile memory."""
 
+import logging
 import os
-from typing import Optional
+from typing import Annotated, Optional
 
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import BaseTool, InjectedToolArg, tool
 from src.auth.spotify_auth import get_oauth, get_user_token, save_user_token
 from src.tools.spotify_context import (
     get_spotify_anonymous_allowed,
@@ -11,6 +12,12 @@ from src.tools.spotify_context import (
     set_spotify_user_context,
 )
 from src.tools.taste_memory import MemoryDoc, ingest_memory_docs
+
+_LOG = logging.getLogger(__name__)
+
+# Injected by get_spotify_tools() on each invoke — not visible to the LLM. ContextVar alone
+# is unreliable when the runtime executes tools on worker threads (no inherited context).
+SpotifyBoundUserId = Annotated[Optional[str], InjectedToolArg]
 
 # Shown when Spotify returns 403 for a user who completed OAuth but is not allowlisted
 # (development mode). See https://developer.spotify.com/documentation/web-api/concepts/quota-modes
@@ -158,8 +165,25 @@ def _get_client(
         return SpotifyClient(access_token=access_token, user_id=current_user_id), None
     except SpotifyAppAccessError as e:
         return None, str(e)
-    except Exception:
-        return None, None
+    except ValueError as e:
+        msg = str(e)
+        if "No stored Spotify token" in msg or "No stored Spotify refresh token" in msg:
+            return (
+                None,
+                "Spotify authorization was found, but no usable token is stored for this account. "
+                "Please click Connect Spotify again to refresh your token.",
+            )
+        if "No valid Spotify session found" in msg:
+            return None, "No valid Spotify session found. Please connect Spotify again."
+        if "Spotify session expired" in msg or "re-authenticate" in msg.lower():
+            return None, f"{msg} Try Connect Spotify again."
+        return None, msg
+    except Exception as e:
+        _LOG.warning("Spotify _get_client failed: %s", e, exc_info=True)
+        return (
+            None,
+            f"Could not open a Spotify API client ({e!s}). Try reconnecting Spotify or retry shortly.",
+        )
 
 
 def _spotify_tool_error_detail(e: BaseException) -> str:
@@ -177,9 +201,16 @@ def _session_user_id() -> str | None:
     return None
 
 
-def _require_session_user_match(client: SpotifyClient) -> str | None:
+def _require_session_user_match(
+    client: SpotifyClient,
+    spotify_bound_user_id: str | None = None,
+) -> str | None:
     """Return an error string when session user and token owner differ."""
-    expected_user_id = _session_user_id()
+    expected_user_id = (
+        spotify_bound_user_id.strip()
+        if isinstance(spotify_bound_user_id, str) and spotify_bound_user_id.strip()
+        else _session_user_id()
+    )
     if not expected_user_id:
         return "Spotify session missing. Please connect Spotify for this user first."
     try:
@@ -222,9 +253,14 @@ def _track_id_from_uri(uri: str) -> str:
 # --- Tool Definitions ---
 
 @tool
-def spotify_search_tracks(query: str, limit: int = 10, access_token: str = None) -> str:
+def spotify_search_tracks(
+    query: str,
+    limit: int = 10,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Search Spotify for tracks by song name, artist, or genre. Returns track names, artists, and URIs."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -242,9 +278,14 @@ def spotify_search_tracks(query: str, limit: int = 10, access_token: str = None)
         return f"Spotify search failed: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_search_artists(query: str, limit: int = 5, access_token: str = None) -> str:
+def spotify_search_artists(
+    query: str,
+    limit: int = 5,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Search Spotify artists by name. Returns artist IDs and Genres."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -262,9 +303,15 @@ def spotify_search_artists(query: str, limit: int = 5, access_token: str = None)
         return f"Spotify artist search failed: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_get_artist_top_tracks(artist_id: str, market: str = "US", limit: int = 5, access_token: str = None) -> str:
+def spotify_get_artist_top_tracks(
+    artist_id: str,
+    market: str = "US",
+    limit: int = 5,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Get top tracks for a specific artist ID. Use after searching to find the right artist."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -282,9 +329,13 @@ def spotify_get_artist_top_tracks(artist_id: str, market: str = "US", limit: int
         return f"Failed to fetch artist top tracks: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_list_playlists(limit: int = 20, access_token: str = None) -> str:
+def spotify_list_playlists(
+    limit: int = 20,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """List the user's Spotify playlists. Returns name and ID. Use this when picking a playlist to add tracks to."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -303,14 +354,19 @@ def spotify_list_playlists(limit: int = 20, access_token: str = None) -> str:
         return f"Failed to list playlists: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_create_playlist(name: str, description: str = "", access_token: str = None) -> str:
+def spotify_create_playlist(
+    name: str,
+    description: str = "",
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Create a new Spotify playlist for the user. Returns the new playlist ID for use with spotify_add_to_playlist."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
         return "Spotify session missing."
-    mismatch = _require_session_user_match(client)
+    mismatch = _require_session_user_match(client, spotify_bound_user_id)
     if mismatch:
         return mismatch
     try:
@@ -320,14 +376,19 @@ def spotify_create_playlist(name: str, description: str = "", access_token: str 
         return f"Failed to create playlist: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_add_to_playlist(playlist_id: str, track_uris: str, access_token: str = None) -> str:
+def spotify_add_to_playlist(
+    playlist_id: str,
+    track_uris: str,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Add tracks to a playlist. track_uris is a comma-separated list of spotify:track:... URIs."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
         return "Spotify session missing."
-    mismatch = _require_session_user_match(client)
+    mismatch = _require_session_user_match(client, spotify_bound_user_id)
     if mismatch:
         return mismatch
     try:
@@ -342,14 +403,18 @@ def spotify_add_to_playlist(playlist_id: str, track_uris: str, access_token: str
         return f"Failed to add to playlist: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_save_tracks(track_uris: str, access_token: str = None) -> str:
+def spotify_save_tracks(
+    track_uris: str,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Save tracks to the user's Spotify library (Liked Songs). track_uris is a comma-separated list of URIs."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
         return "Spotify session missing."
-    mismatch = _require_session_user_match(client)
+    mismatch = _require_session_user_match(client, spotify_bound_user_id)
     if mismatch:
         return mismatch
     try:
@@ -362,9 +427,13 @@ def spotify_save_tracks(track_uris: str, access_token: str = None) -> str:
         return f"Failed to save tracks to library: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_get_recently_played(limit: int = 20, access_token: str = None) -> str:
+def spotify_get_recently_played(
+    limit: int = 20,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Get the user's recently played tracks. Useful for current taste signals."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -383,9 +452,13 @@ def spotify_get_recently_played(limit: int = 20, access_token: str = None) -> st
         return f"Failed to fetch recently played: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_build_library_profile(limit: int = 20, access_token: str = None) -> str:
+def spotify_build_library_profile(
+    limit: int = 20,
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Build a concise snapshot of user taste from top tracks/artists and recent listening."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -404,9 +477,13 @@ def spotify_build_library_profile(limit: int = 20, access_token: str = None) -> 
         return f"Failed to build profile: {_spotify_tool_error_detail(e)}"
 
 @tool
-def spotify_ingest_taste_memory(user_id: str = "default", access_token: str = None) -> str:
+def spotify_ingest_taste_memory(
+    user_id: str = "default",
+    access_token: str = None,
+    spotify_bound_user_id: SpotifyBoundUserId = None,
+) -> str:
     """Ingest Spotify listening data into local vector memory for long-term taste retrieval."""
-    client, spotify_err = _get_client(access_token)
+    client, spotify_err = _get_client(access_token, spotify_bound_user_id)
     if spotify_err:
         return spotify_err
     if not client:
@@ -460,6 +537,7 @@ def get_spotify_tools(access_token: str | None = None, user_id: str | None = Non
         prev_user = get_spotify_user_context()
         if bound_user_id:
             set_spotify_user_context(bound_user_id)
+            payload["spotify_bound_user_id"] = bound_user_id
         try:
             if bound_token:
                 payload["access_token"] = bound_token
